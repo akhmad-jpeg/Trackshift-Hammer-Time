@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Digital Pit Wall</title>
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --red: #e10600;
+            --red-dark: #a30500;
+            --red-glow: rgba(225,6,0,0.35);
+            --teal: #00d2be;
+            --teal-dim: rgba(0,210,190,0.1);
+            --teal-glow: rgba(0,210,190,0.3);
+            --gold: #ffd700;
+            --green: #00ff88;
+            --bg: #0d0d11;
+            --bg2: #15151e;
+            --bg3: #1c1c28;
+            --bg4: #222230;
+            --border: rgba(255,255,255,0.07);
+            --text: #f0f0f0;
+            --muted: #666;
+            --f1-header-bg: #15151e;
+            --f1-header-height: 56px;
+            --f1-infobar-height: 52px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Barlow Condensed',sans-serif;
+            background:var(--bg); color:var(--text);
+            min-height:100vh; overflow-x:hidden;
+        }
+        body::before {
+            content:''; position:fixed; inset:0;
+            background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px);
+            pointer-events:none; z-index:999;
+        }
+
+        /* F1 HEADER */
+        .f1-header {
+            position:sticky; top:0; z-index:200;
+            background:var(--f1-header-bg);
+            border-bottom:3px solid var(--red);
+            height:var(--f1-header-height);
+            display:flex; align-items:center;
+            padding:0 0 0 24px;
+        }
+        .f1-header::after {
+            content:''; position:absolute; top:0; right:0;
+            width:280px; height:100%;
+            background:repeating-linear-gradient(
+                -72deg,
+                transparent,
+                transparent 10px,
+                rgba(225,6,0,0.07) 10px,
+                rgba(225,6,0,0.07) 20px
+            );
+            pointer-events:none;
+        }
+        .f1-header::before {
+            content:''; position:absolute; top:0; right:240px;
+            width:60px; height:100%;
+            background:linear-gradient(-72deg, transparent 30%, rgba(225,6,0,0.04) 100%);
+            pointer-events:none;
+        }
+
+        /* F1 Logo */
+        .f1-logo {
+            display:flex; align-items:center;
+            margin-right:32px; flex-shrink:0;
+            cursor:default;
+        }
+        .f1-logo img { height:28px; display:block; }
+        .fia-badge { display:flex; align-items:center; margin-left:12px; }
+        .fia-badge img { height:24px; width:24px; border-radius:50%; display:block; }
+
+        /* Navigation tabs */
+        .f1-nav {
+            display:flex; align-items:center; gap:0;
+            height:100%; flex:1;
+        }
+        .f1-nav-btn {
+            display:flex; align-items:center;
+            height:100%; padding:0 20px;
+            background:transparent; border:none;
+            color:var(--muted); cursor:pointer;
+            font-family:'Barlow Condensed',sans-serif;
+            font-weight:700; font-size:0.88em;
+            letter-spacing:1.5px; text-transform:uppercase;
+            position:relative; transition:color 0.15s;
+        }
+        .f1-nav-btn:hover { color:var(--text); }
+        .f1-nav-btn.active { color:#fff; }
+        .f1-nav-btn.active::after {
+            content:''; position:absolute; bottom:0; left:20px; right:20px;
+            height:3px; background:var(--red);
+        }
+
+        /* Live badge */
+        .f1-live-badge {
+            margin-left:auto; margin-right:24px;
+            display:flex; align-items:center; gap:8px;
+            padding:6px 16px; border-radius:2px;
+            font-family:'Share Tech Mono',monospace;
+            font-size:0.68em; letter-spacing:2px;
+            background:rgba(0,255,136,0.06);
+            border:1px solid rgba(0,255,136,0.2);
+            color:var(--green); flex-shrink:0;
+        }
+        .f1-live-badge.standby {
+            background:rgba(255,255,255,0.03);
+            border-color:rgba(255,255,255,0.1);
+            color:var(--muted);
+        }
+        .f1-live-dot {
+            width:7px; height:7px; border-radius:50%;
+            background:var(--green);
+            animation:pulse 1.5s ease-in-out infinite;
+        }
+        .f1-live-badge.standby .f1-live-dot {
+            background:var(--muted); animation:none;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        /* F1 INFO BAR */
+        .f1-infobar {
+            background:var(--bg);
+            border-bottom:1px solid var(--border);
+            height:var(--f1-infobar-height);
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0 24px;
+        }
+        .f1-infobar-left { display:flex; align-items:center; gap:20px; }
+        .f1-round-info {
+            font-family:'Barlow Condensed',sans-serif;
+            font-weight:700; font-size:0.8em;
+            letter-spacing:2px; color:var(--text);
+            text-transform:uppercase;
+        }
+        .f1-round-info span { color:var(--muted); margin:0 6px; }
+        .f1-circuit-banner {
+            display:flex; align-items:center; gap:10px;
+            cursor:default;
+        }
+        .f1-flag { font-size:1.4em; line-height:1; }
+        .f1-circuit-name {
+            font-family:'Barlow Condensed',sans-serif;
+            font-weight:700; font-size:1.05em;
+            letter-spacing:1px; color:var(--text);
+            text-transform:uppercase;
+        }
+        .f1-circuit-arrow {
+            color:var(--muted); font-size:0.7em;
+            margin-left:2px;
+        }
+        .f1-infobar-right {
+            display:flex; align-items:center; gap:24px;
+        }
+        .f1-clock-group {
+            display:flex; align-items:center; gap:16px;
+        }
+        .f1-clock { text-align:right; }
+        .f1-clock-label {
+            display:block;
+            font-family:'Share Tech Mono',monospace;
+            font-size:0.55em; letter-spacing:3px;
+            color:var(--muted); text-transform:uppercase;
+            margin-bottom:2px;
+        }
+        .f1-clock-value {
+            font-family:'Share Tech Mono',monospace;
+            font-size:1.1em; letter-spacing:1px;
+            color:var(--text);
+        }
+        .f1-clock-icon {
+            width:32px; height:32px;
+            border:2px solid var(--red);
+            border-radius:50%; position:relative;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .f1-clock-icon::before {
+            content:''; width:2px; height:10px;
+            background:var(--red); position:absolute;
+            bottom:50%; transform-origin:bottom center;
+            animation:clockHand 60s linear infinite;
+        }
+        .f1-clock-icon::after {
+            content:''; width:2px; height:7px;
+            background:var(--red); position:absolute;
+            bottom:50%; transform-origin:bottom center;
+            animation:clockHand 3600s linear infinite;
+        }
+        @keyframes clockHand { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+        /* MAIN CONTENT */
+        .main-content {
+            max-width:1600px; margin:0 auto;
+            padding:0;
+        }
+        .tab-panel { display:none; padding:24px 28px; }
+        .tab-panel.active { display:block; }
+
+        /* ROW 1 STATS BAR */
+        .stats-bar { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; }
+        .stat-card {
+            background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+            padding:16px 20px; position:relative; overflow:hidden;
+        }
+        .stat-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:var(--teal); }
+        .stat-card.gold::before { background:var(--gold); }
+        .stat-label { font-family:'Share Tech Mono',monospace; font-size:0.62em; letter-spacing:3px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; }
+        .stat-value { font-family:'Share Tech Mono',monospace; font-size:1.6em; color:var(--teal); letter-spacing:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .stat-value.gold-val { color:var(--gold); }
+        .stat-value.flash { animation:statflash 0.4s ease; }
+        @keyframes statflash { 0%{color:var(--red)} 100%{color:var(--teal)} }
+
+        /* ROW 2 SESSION INFO BAR */
+        .session-info-bar {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+            margin-bottom:20px;
+        }
+        .info-cell {
+            background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+            padding:12px 16px; position:relative; overflow:hidden;
+        }
+        .info-cell-lbl { font-family:'Share Tech Mono',monospace; font-size:0.6em; letter-spacing:3px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; }
+        .info-cell-val { font-family:'Share Tech Mono',monospace; font-size:1.2em; letter-spacing:1px; color:var(--teal); }
+        .info-cell-val.gold-val { color:var(--gold); }
+
+        .dash-layout { display:grid; grid-template-columns:1fr 300px; gap:18px; }
+        .chart-card {
+            background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+            padding:20px; margin-bottom:18px; position:relative;
+        }
+        .chart-card::before { content:''; position:absolute; top:0; left:0; width:40px; height:2px; background:var(--teal); }
+        .chart-title { font-weight:700; font-size:0.76em; letter-spacing:3px; text-transform:uppercase; color:var(--text); margin-bottom:16px; }
+        .chart-note { margin-top:10px; font-family:'Share Tech Mono',monospace; font-size:0.65em; letter-spacing:1px; color:#777; }
+        canvas { width:100%!important; }
+        /* The two dashboard charts have no fixed-height container, so they
+           need an explicit canvas height; the driver-comparison charts size
+           themselves from their fixed-height chart cards instead of being
+           forced to 230px. */
+        #lapChart, #tyreChart { height:230px!important; }
+        .no-data {
+            display:flex; align-items:center; justify-content:center; height:230px;
+            font-family:'Share Tech Mono',monospace; font-size:0.72em; letter-spacing:2px;
+            color:var(--muted); border:1px dashed var(--border); border-radius:3px;
+        }
+
+        /* SESSION SIDEBAR */
+        .sidebar-title { font-family:'Share Tech Mono',monospace; font-size:0.68em; letter-spacing:3px; color:var(--muted); margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); text-transform:uppercase; }
+        .session-item {
+            padding:12px 14px; margin-bottom:7px; border:1px solid var(--border); border-radius:4px;
+            cursor:pointer; transition:all 0.15s; position:relative; overflow:hidden;
+        }
+        .session-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; transition:background 0.15s; }
+        .session-item:hover::before, .session-item.active::before { background:var(--teal); }
+        .session-item:hover { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.12); }
+        .session-item.active { background:rgba(0,210,190,0.05); border-color:rgba(0,210,190,0.2); }
+        .sesh-track { font-weight:700; font-size:0.88em; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+        .sesh-meta { font-family:'Share Tech Mono',monospace; font-size:0.62em; color:var(--muted); letter-spacing:1px; }
+        .sesh-best { font-family:'Share Tech Mono',monospace; font-size:0.68em; color:var(--gold); margin-top:3px; }
+
+        /* PREDICT / STRATEGY */
+        .two-col { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+        .panel {
+            background:var(--bg2); border:1px solid var(--border); border-radius:4px;
+            padding:24px; position:relative;
+        }
+        .panel::before { content:''; position:absolute; top:0; left:0; width:40px; height:2px; }
+        .panel.red::before { background:var(--red); }
+        .panel.teal::before { background:var(--teal); }
+        .panel-title { font-family:'Share Tech Mono',monospace; font-size:0.68em; letter-spacing:3px; color:var(--muted); margin-bottom:22px; text-transform:uppercase; }
+        .field { margin-bottom:16px; }
+        .field label { display:block; font-family:'Share Tech Mono',monospace; font-size:0.62em; letter-spacing:3px; color:var(--muted); margin-bottom:7px; text-transform:uppercase; }
+        .field input, .field select {
+            width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:3px;
+            padding:10px 13px; color:var(--text); font-family:'Barlow Condensed',sans-serif;
+            font-size:1em; letter-spacing:1px; outline:none; transition:border-color 0.15s;
+        }
+        .field input:focus, .field select:focus { border-color:var(--teal); }
+        .field select { appearance:none; cursor:pointer; }
+        .field select option { background:var(--bg3); }
+        .field input[type="number"] { -moz-appearance:textfield; }
+        .field input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; }
+        .opt-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+        .opt-btn {
+            padding:8px 11px; background:var(--bg3); border:1px solid var(--border);
+            border-radius:3px; color:var(--muted); font-family:'Barlow Condensed',sans-serif;
+            font-weight:600; font-size:0.8em; letter-spacing:1px; cursor:pointer;
+            transition:all 0.12s; text-align:left; display:flex; align-items:center; gap:7px;
+        }
+        .opt-btn:hover { border-color:rgba(255,255,255,0.15); color:var(--text); }
+        .opt-btn.sel { border-color:var(--teal); background:var(--teal-dim); color:var(--teal); }
+        .tyre-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .opt-tag { font-size:0.6em; letter-spacing:1px; color:var(--muted); margin-left:auto; }
+        .opt-btn.sel .opt-tag { color:var(--teal); opacity:0.7; }
+        .action-btn {
+            width:100%; margin-top:18px; padding:13px; background:var(--red);
+            border:none; color:#fff; font-family:'Barlow Condensed',sans-serif;
+            font-weight:900; font-size:0.9em; letter-spacing:4px; text-transform:uppercase;
+            cursor:pointer; border-radius:3px; transition:all 0.15s;
+        }
+        .action-btn:hover { background:#ff2010; box-shadow:0 0 20px var(--red-glow); transform:translateY(-1px); }
+        .action-btn:disabled { background:#2a2a2a; color:#444; cursor:not-allowed; transform:none; box-shadow:none; }
+        .err-box {
+            margin-top:12px; padding:11px 13px; background:rgba(225,6,0,0.08);
+            border:1px solid rgba(225,6,0,0.25); border-radius:3px;
+            font-family:'Share Tech Mono',monospace; font-size:0.7em; color:#ff6666;
+            letter-spacing:1px; display:none;
+        }
+        .result-empty {
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            height:100%; min-height:340px; gap:10px; color:var(--muted);
+        }
+        .result-empty .icon { font-size:2.5em; opacity:0.25; }
+        .result-empty p { font-family:'Share Tech Mono',monospace; font-size:0.7em; letter-spacing:2px; }
+        .result-content { display:none; }
+        .result-content.show { display:block; }
+        .result-time-wrap { text-align:center; padding:26px 0; border-bottom:1px solid var(--border); margin-bottom:18px; }
+        .result-lbl { font-family:'Share Tech Mono',monospace; font-size:0.62em; letter-spacing:3px; color:var(--muted); margin-bottom:10px; }
+        .result-time {
+            font-family:'Share Tech Mono',monospace; font-size:2.8em; letter-spacing:2px;
+            color:var(--teal); text-shadow:0 0 28px var(--teal-glow);
+            animation:popIn 0.4s ease;
+        }
+        @keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+        .result-secs { font-family:'Share Tech Mono',monospace; font-size:0.72em; color:var(--muted); margin-top:6px; }
+        .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .result-cell { background:var(--bg3); border:1px solid var(--border); border-radius:3px; padding:11px 13px; }
+        .result-cell-lbl { font-family:'Share Tech Mono',monospace; font-size:0.6em; letter-spacing:2px; color:var(--muted); margin-bottom:5px; text-transform:uppercase; }
+        .result-cell-val { font-weight:700; font-size:0.92em; letter-spacing:1px; text-transform:uppercase; }
+        .tyre-dot-lg { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+        .event-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
+        .event-btn {
+            padding:14px 10px; background:var(--bg3); border:2px solid var(--border);
+            border-radius:4px; cursor:pointer; text-align:center; transition:all 0.15s;
+        }
+        .event-btn:hover { border-color:rgba(255,255,255,0.2); background:rgba(255,255,255,0.03); }
+        .event-btn.sel { border-color:var(--red); background:rgba(225,6,0,0.08); }
+        .event-icon { font-size:1.8em; margin-bottom:5px; }
+        .event-lbl { font-family:'Share Tech Mono',monospace; font-size:0.72em; letter-spacing:1px; }
+        .strat-empty {
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            height:100%; min-height:340px; gap:10px; color:var(--muted); text-align:center;
+        }
+        .strat-empty .icon { font-size:2.5em; opacity:0.25; }
+        .strat-empty p { font-family:'Share Tech Mono',monospace; font-size:0.7em; letter-spacing:2px; line-height:1.8; }
+        .strat-result { display:none; }
+        .strat-result.show { display:block; }
+        .strat-option {
+            background:var(--bg3); border:1px solid var(--border); border-radius:4px;
+            padding:15px 17px; margin-bottom:11px; position:relative;
+        }
+        .strat-option.best { border-color:var(--teal); background:rgba(0,210,190,0.04); }
+        .strat-badge {
+            display:none; position:absolute; top:11px; right:13px;
+            font-family:'Share Tech Mono',monospace; font-size:0.6em; letter-spacing:2px;
+            color:var(--gold); background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3);
+            padding:2px 8px; border-radius:3px;
+        }
+        .strat-option.best .strat-badge { display:block; }
+        .strat-opt-title { font-weight:700; font-size:0.95em; letter-spacing:1px; text-transform:uppercase; color:var(--teal); margin-bottom:4px; }
+        .strat-desc { font-size:0.82em; color:var(--muted); margin-bottom:10px; }
+        .strat-stats { display:flex; gap:18px; font-family:'Share Tech Mono',monospace; font-size:0.65em; letter-spacing:1px; }
+        .strat-stats span { color:var(--text); }
+        .strat-recommend {
+            margin-top:14px; padding:15px 17px;
+            background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.2); border-radius:4px;
+        }
+        .strat-rec-title { font-family:'Share Tech Mono',monospace; font-size:0.62em; letter-spacing:3px; color:var(--green); margin-bottom:8px; text-transform:uppercase; }
+        .strat-rec-action { font-weight:700; font-size:1em; letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
+        .strat-rec-reason { font-size:0.82em; color:var(--muted); line-height:1.4; }
+        @media(max-width:900px) {
+            .two-col, .dash-layout { grid-template-columns:1fr; }
+            .stats-bar { grid-template-columns:1fr 1fr; }
+            .session-info-bar { grid-template-columns:1fr 1fr; }
+            .f1-nav-btn { padding:0 12px; font-size:0.78em; }
+            .f1-infobar { flex-direction:column; height:auto; padding:8px 16px; gap:6px; }
+            .f1-infobar-left, .f1-infobar-right { gap:12px; }
+        }
+        .dc-table { width:100%; border-collapse:collapse; margin-top:14px; }
+        .dc-table th, .dc-table td { text-align:left; padding:7px 10px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'Share Tech Mono',monospace; font-size:0.78em; }
+        .dc-table th { color:var(--teal); font-size:0.7em; letter-spacing:0.1em; }
+        .dc-summary { font-family:'Share Tech Mono',monospace; font-size:0.88em; }
+        .dc-summary .dc-big { font-size:1.5em; color:var(--gold); }
+        .dc-sig { margin-top:8px; padding:6px 10px; border-radius:4px; font-size:0.82em; line-height:1.4; }
+        .dc-sig-good { color:#8ee6a8; background:rgba(46,204,113,0.10); border:1px solid rgba(46,204,113,0.35); }
+        .dc-sig-warn { color:#ffd97a; background:rgba(255,193,7,0.10); border:1px solid rgba(255,193,7,0.35); }
+        .dc-sig-bad  { color:#ff9d9d; background:rgba(255,107,107,0.10); border:1px solid rgba(255,107,107,0.35); }
+        .dc-sig-mute { color:var(--muted); }
+        .rc-drivers { display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:230px; overflow-y:auto; }
+        .rc-driver { display:flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid rgba(255,255,255,0.08); border-radius:6px; background:var(--bg2); cursor:pointer; font-size:0.78em; font-family:'Share Tech Mono',monospace; line-height:1.3; }
+        .rc-driver small { color:var(--muted); }
+        .rc-driver.selected { border-color:var(--teal); background:rgba(0,229,255,0.08); }
+        .rc-driver input { accent-color:var(--teal); }
+        .dc-divider { border-top:1px solid rgba(255,255,255,0.08); margin:16px 0 12px; }
+        .rc-legend { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; font-size:0.7em; font-family:'Share Tech Mono',monospace; color:var(--muted); }
+        .rc-legend-title { color:var(--teal); letter-spacing:0.12em; }
+        .rc-leg-item { display:inline-flex; align-items:center; gap:6px; }
+        .rc-leg-dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+        .rc-leg-line { width:18px; height:0; border-top:3px solid; display:inline-block; }
+
+        /* LIGHT MODE */
+        body.light-mode {
+            --bg: #f2f2f7;
+            --bg2: #ffffff;
+            --bg3: #e8e8ed;
+            --bg4: #d1d1d6;
+            --border: rgba(0,0,0,0.10);
+            --text: #111111;
+            --muted: #888;
+            --f1-header-bg: #ffffff;
+        }
+        body.light-mode .f1-header { border-bottom-color: var(--red); }
+        body.light-mode .f1-header::after,
+        body.light-mode .f1-header::before { opacity:0.3; }
+        body.light-mode .stat-card,
+        body.light-mode .chart-card,
+        body.light-mode .panel,
+        body.light-mode .session-item,
+        body.light-mode .info-cell,
+        body.light-mode .strat-option,
+        body.light-mode .result-cell,
+        body.light-mode .event-btn {
+            background: var(--bg2);
+            border-color: var(--border);
+        }
+        body.light-mode .chart-title,
+        body.light-mode .panel-title,
+        body.light-mode .sidebar-title,
+        body.light-mode .result-lbl,
+        body.light-mode .stat-label,
+        body.light-mode .info-cell-lbl,
+        body.light-mode .result-cell-lbl,
+        body.light-mode .strat-rec-title {
+            color: #666;
+        }
+        body.light-mode .stat-value,
+        body.light-mode .info-cell-val,
+        body.light-mode .result-time,
+        body.light-mode .strat-opt-title,
+        body.light-mode .strat-rec-action,
+        body.light-mode .sesh-track,
+        body.light-mode .result-cell-val,
+        body.light-mode .event-lbl {
+            color: var(--text);
+        }
+        body.light-mode .field input,
+        body.light-mode .field select {
+            background: var(--bg3);
+            color: var(--text);
+            border-color: var(--border);
+        }
+        body.light-mode .opt-btn { background: var(--bg3); border-color: var(--border); color: #555; }
+        body.light-mode .rc-driver { background: var(--bg2); border-color: var(--border); color: var(--text); }
+        body.light-mode .dc-table th { color: var(--red); }
+        body.light-mode .dc-table td { border-bottom-color: rgba(0,0,0,0.06); color: var(--text); }
+        body.light-mode .no-data { border-color: rgba(0,0,0,0.12); color: #999; }
+        body.light-mode .f1-infobar { background: var(--bg); border-bottom-color: var(--border); }
+        body.light-mode .f1-live-badge { background:rgba(0,180,120,0.08); border-color:rgba(0,180,120,0.25); }
+        body.light-mode .f1-live-badge.standby { background:rgba(0,0,0,0.04); border-color:rgba(0,0,0,0.1); }
+        body.light-mode .chart-note { color: #999; }
+        body.light-mode .sesh-meta { color: #888; }
+        body.light-mode .sesh-best { color: #b8860b; }
+        body.light-mode .stat-value.gold-val { color: #b8860b; }
+        body.light-mode .info-cell-val.gold-val { color: #b8860b; }
+        body.light-mode .f1-logo img { filter:none; }
+
+        /* THEME TOGGLE */
+        .theme-toggle {
+            height:34px; border-radius:2px;
+            background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+            color:var(--muted); cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            font-family:'Share Tech Mono',monospace; font-size:0.55em;
+            letter-spacing:2px; text-transform:uppercase;
+            padding:0 10px; transition:all 0.2s; margin-right:12px; flex-shrink:0;
+        }
+        .theme-toggle:hover { background:rgba(255,255,255,0.12); color:var(--text); }
+        body.light-mode .theme-toggle { background:rgba(0,0,0,0.05); border-color:rgba(0,0,0,0.12); color:#666; }
+        body.light-mode .theme-toggle:hover { background:rgba(0,0,0,0.1); color:#333; }
+
+        /* RACE CALENDAR SIDEBAR */
+        .calendar-toggle-btn {
+            display:flex; align-items:center; gap:7px;
+            padding:8px 16px; background:var(--bg3); border:1px solid var(--border);
+            border-radius:4px; color:var(--muted); cursor:pointer;
+            font-family:'Barlow Condensed',sans-serif; font-weight:700;
+            font-size:0.78em; letter-spacing:1.5px; text-transform:uppercase;
+            transition:all 0.15s; margin-bottom:16px;
+        }
+        .calendar-toggle-btn:hover { border-color:var(--red); color:var(--text); }
+        .calendar-toggle-btn.active { border-color:var(--red); color:var(--red); background:rgba(225,6,0,0.06); }
+
+        .race-calendar {
+            display:none; margin-bottom:20px;
+        }
+        .race-calendar.show { display:block; }
+        .race-calendar-inner {
+            background:var(--bg2); border:1px solid var(--border); border-radius:5px;
+            padding:0; overflow:hidden;
+        }
+        .race-calendar-header {
+            padding:14px 18px; border-bottom:1px solid var(--border);
+            font-family:'Barlow Condensed',sans-serif; font-weight:900;
+            font-size:0.82em; letter-spacing:2px; text-transform:uppercase;
+            color:var(--text); display:flex; align-items:center; gap:10px;
+        }
+        .race-calendar-header .cal-year { color:var(--red); }
+        .cal-grid {
+            display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+            gap:0;
+        }
+        .cal-item {
+            display:flex; align-items:center; gap:10px;
+            padding:10px 14px; border-bottom:1px solid var(--border);
+            border-right:1px solid var(--border);
+            transition:background 0.1s; cursor:pointer;
+        }
+        .cal-item:hover { background:rgba(255,255,255,0.03); }
+        body.light-mode .cal-item:hover { background:rgba(0,0,0,0.03); }
+        .cal-item.current { background:rgba(225,6,0,0.06); }
+        .cal-round {
+            font-family:'Share Tech Mono',monospace; font-size:0.65em;
+            letter-spacing:1px; color:var(--muted); min-width:24px;
+        }
+        .cal-item.current .cal-round { color:var(--red); font-weight:700; }
+        .cal-flag { width:22px; height:16px; border-radius:2px; object-fit:cover; flex-shrink:0; border:1px solid rgba(255,255,255,0.08); }
+        body.light-mode .cal-flag { border-color:rgba(0,0,0,0.1); }
+        .cal-info { flex:1; min-width:0; }
+        .cal-country { font-weight:700; font-size:0.82em; letter-spacing:0.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .cal-dates { font-family:'Share Tech Mono',monospace; font-size:0.6em; color:var(--muted); letter-spacing:1px; }
+
+        /* DRIVER TEAM BADGE */
+        .driver-badge {
+            display:inline-flex; align-items:center; gap:5px;
+        }
+        .driver-badge-dot {
+            width:8px; height:8px; border-radius:50%; flex-shrink:0;
+            border:1px solid rgba(255,255,255,0.15);
+        }
+        body.light-mode .driver-badge-dot { border-color:rgba(0,0,0,0.15); }
+
+        /* LIVE BADGE above red line */
+        .f1-live-badge { position:relative; z-index:201; }
+    </style>
+</head>
+<body>
+
+<!-- Live badge above red line -->
+<div style="position:sticky;top:0;z-index:201;display:flex;justify-content:flex-end;padding:0 24px;">
+    <div class="f1-live-badge standby" style="margin-top:-18px;border-radius:0 0 4px 4px;">
+        <div class="f1-live-dot"></div>
+        <span class="f1-live-text">STANDBY</span>
+    </div>
+</div>
+
+<div class="f1-header">
+    <a class="f1-logo" href="/" title="F1 Digital Pit Wall">
+        <img src="/static/f1-logo.png" alt="F1">
+    </a>
+    <a class="fia-badge" href="https://www.fia.com" title="FIA" target="_blank">
+        <img src="/static/fia-logo.svg" alt="FIA">
+    </a>
+
+    <nav class="f1-nav">
+        <button class="f1-nav-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+        <button class="f1-nav-btn" onclick="switchTab('predict',this)">Lap Predictor</button>
+        <button class="f1-nav-btn" onclick="switchTab('strategy',this)">Strategy Advisor</button>
+        <button class="f1-nav-btn" onclick="switchTab('drivers',this)">Drivers</button>
+    </nav>
+
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="theme-btn">SUN</button>
+</div>
+
+<!-- INFO BAR -->
+<div class="f1-infobar">
+    <div class="f1-infobar-left">
+        <div class="f1-round-info" id="f1-round">R<span id="f1-round-num">---</span> <span>|</span> <span id="f1-date-range">---</span></div>
+        <div class="f1-circuit-banner">
+            <span class="f1-flag" id="f1-flag"></span>
+            <span class="f1-circuit-name" id="f1-circuit-name">Select a session</span>
+            <span class="f1-circuit-arrow">&#8250;</span>
+        </div>
+    </div>
+    <div class="f1-infobar-right">
+        <div class="f1-clock-group">
+            <div class="f1-clock">
+                <span class="f1-clock-label">My Time</span>
+                <span class="f1-clock-value" id="f1-my-time">--:--</span>
+            </div>
+            <div class="f1-clock-icon"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+
+<!-- TAB: DASHBOARD -->
+<div id="tab-dashboard" class="tab-panel active">
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-label">Current Last Lap</div>
+            <div class="stat-value" id="stat-laptime">--:--.---</div>
+        </div>
+        <div class="stat-card gold">
+            <div class="stat-label">Current Fastest</div>
+            <div class="stat-value gold-val" id="stat-fastest">--:--.---</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Current Track</div>
+            <div class="stat-value" id="stat-track">---</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Tyre Compound</div>
+            <div class="stat-value" id="stat-tyre">---</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Lap Number</div>
+            <div class="stat-value" id="stat-lap">--</div>
+        </div>
+    </div>
+
+    <button class="calendar-toggle-btn" onclick="toggleCalendar()" id="cal-toggle">2024 Race Calendar</button>
+    <div class="race-calendar" id="race-calendar">
+        <div class="race-calendar-inner">
+            <div class="race-calendar-header"><span class="cal-year">2024</span> FIA Formula One World Championship</div>
+            <div class="cal-grid" id="cal-grid"></div>
+        </div>
+    </div>
+
+    <div class="session-info-bar" id="session-info-bar">
+        <div class="info-cell">
+            <div class="info-cell-lbl">Session Track</div>
+            <div class="info-cell-val" id="info-track">---</div>
+        </div>
+        <div class="info-cell">
+            <div class="info-cell-lbl">Fastest Lap</div>
+            <div class="info-cell-val gold-val" id="info-fastest">---</div>
+        </div>
+        <div class="info-cell">
+            <div class="info-cell-lbl">Last Lap</div>
+            <div class="info-cell-val" id="info-lastlap">---</div>
+        </div>
+        <div class="info-cell">
+            <div class="info-cell-lbl">Tyre Used</div>
+            <div class="info-cell-val" id="info-tyre">---</div>
+        </div>
+    </div>
+
+    <div class="dash-layout">
+        <div>
+            <div class="chart-card">
+                <div class="chart-title">Lap Time Progression</div>
+                <div id="lapNoData" class="no-data">SELECT A SESSION</div>
+                <canvas id="lapChart" style="display:none"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Stint Pace Residuals</div>
+                <div id="tyreNoData" class="no-data">SELECT A SESSION</div>
+                <canvas id="tyreChart" style="display:none"></canvas>
+                <div class="chart-note" id="tyreChartNote" style="display:none">After removing the linear fuel/trend effect per stint — does not isolate tyre wear. Pit-in/pit-out laps are excluded from the plot.</div>
+            </div>
+        </div>
+        <div>
+            <div class="chart-card" style="height:100%">
+                <div class="sidebar-title">Recent Sessions</div>
+                <div class="field" style="margin-top:10px">
+                    <label>Driver</label>
+                    <select id="dash-driver" onchange="onDashboardDriverChange()">
+                        <option value="">All drivers</option>
+                    </select>
+                </div>
+                <div id="sessions-list">
+                    <div class="no-data" style="height:120px">LOADING...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: LAP PREDICTOR -->
+<div id="tab-predict" class="tab-panel">
+    <div class="two-col">
+        <div class="panel red">
+            <div class="panel-title">Race Conditions</div>
+            <div class="field">
+                <label>Tyre Age (laps)</label>
+                <input type="number" id="p-age" min="0" max="60" placeholder="e.g. 12">
+            </div>
+            <div class="field">
+                <label>Lap Number</label>
+                <input type="number" id="p-lap-number" min="0" max="80" step="1" placeholder="e.g. 12">
+            </div>
+            <div class="field">
+                <label>Tyre Compound</label>
+                <div class="opt-grid" id="p-tyre-grid">
+                    <div style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72em;padding:8px">Loading model...</div>
+                </div>
+            </div>
+            <div class="field">
+                <label>Track</label>
+                <div class="opt-grid" id="p-track-grid">
+                    <div style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72em;padding:8px">Loading model...</div>
+                </div>
+            </div>
+            <button class="action-btn" id="predict-btn" onclick="runPredict()">PREDICT LAP TIME</button>
+            <div class="err-box" id="predict-err"></div>
+        </div>
+        <div class="panel teal">
+            <div class="panel-title">Prediction Result</div>
+            <div class="result-empty" id="result-empty">
+                <div class="icon">///</div>
+                <p>SET CONDITIONS &amp; PREDICT</p>
+            </div>
+            <div class="result-content" id="result-content">
+                <div class="result-time-wrap">
+                    <div class="result-lbl">PREDICTED LAP TIME</div>
+                    <div class="result-time" id="result-time">-:--.---</div>
+                    <div class="result-secs" id="result-secs"></div>
+                </div>
+                <div class="result-grid">
+                    <div class="result-cell">
+                        <div class="result-cell-lbl">Track</div>
+                        <div class="result-cell-val" id="res-track">---</div>
+                    </div>
+                    <div class="result-cell">
+                        <div class="result-cell-lbl">Tyre</div>
+                        <div class="result-cell-val" id="res-tyre">---</div>
+                    </div>
+                    <div class="result-cell">
+                        <div class="result-cell-lbl">Tyre Age</div>
+                        <div class="result-cell-val" id="res-age">---</div>
+                    </div>
+                    <div class="result-cell">
+                        <div class="result-cell-lbl">Est. Fuel</div>
+                        <div class="result-cell-val" id="res-fuel">---</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: STRATEGY ADVISOR -->
+<div id="tab-strategy" class="tab-panel">
+    <div class="two-col">
+        <div class="panel red">
+            <div class="panel-title">Current Race Situation</div>
+            <div class="two-col" style="gap:12px;margin-bottom:0">
+                <div class="field">
+                    <label>Current Lap</label>
+                    <input type="number" id="s-curlap" min="1" value="15">
+                </div>
+                <div class="field">
+                    <label>Total Laps</label>
+                    <input type="number" id="s-totlaps" min="1" value="50">
+                </div>
+            </div>
+            <div class="field">
+                <label>Current Tyre Age (laps)</label>
+                <input type="number" id="s-age" min="0" value="10">
+            </div>
+            <div class="field">
+                <label>Current Tyre Compound</label>
+                <div class="opt-grid" id="s-tyre-grid">
+                    <div style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72em;padding:8px">Loading model...</div>
+                </div>
+            </div>
+            <div class="field">
+                <label>Track</label>
+                <div class="opt-grid" id="s-track-grid">
+                    <div style="color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.72em;padding:8px">Loading model...</div>
+                </div>
+            </div>
+            <div class="field">
+                <label>Race Event</label>
+                <div class="event-grid">
+                    <div class="event-btn" id="ev-VSC" onclick="selectEvent('VSC')">
+                        <div class="event-icon" style="color:#ffd700;">///</div>
+                        <div class="event-lbl">VSC</div>
+                    </div>
+                    <div class="event-btn" id="ev-SafetyCar" onclick="selectEvent('SafetyCar')">
+                        <div class="event-icon" style="color:#fff;">SC</div>
+                        <div class="event-lbl">Safety Car</div>
+                    </div>
+                    <div class="event-btn" id="ev-Rain" onclick="selectEvent('Rain')">
+                        <div class="event-icon" style="color:#4fc3f7;">~</div>
+                        <div class="event-lbl">Rain</div>
+                    </div>
+                    <div class="event-btn" id="ev-Crash" onclick="selectEvent('Crash')">
+                        <div class="event-icon" style="color:#ff4444;">X</div>
+                        <div class="event-lbl">Incident / Crash</div>
+                    </div>
+                </div>
+            </div>
+            <button class="action-btn" onclick="runStrategy()">ANALYZE STRATEGY</button>
+            <div class="err-box" id="strategy-err"></div>
+        </div>
+        <div class="panel teal">
+            <div class="panel-title">Strategy Options</div>
+            <div class="strat-empty" id="strat-empty">
+                <div class="icon">///</div>
+                <p>FILL IN RACE SITUATION<br>SELECT AN EVENT<br>THEN ANALYZE</p>
+            </div>
+            <div class="strat-result" id="strat-result">
+                <div id="strat-options"></div>
+                <div class="strat-recommend" id="strat-rec"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB: DRIVER COMPARISON -->
+<div id="tab-drivers" class="tab-panel">
+    <div class="two-col">
+        <div class="panel red">
+            <div class="panel-title">1 - Compare on a Track</div>
+            <div class="field">
+                <label>Season</label>
+                <select id="rc-year" onchange="loadComparisonTracks()">
+                    <option value="">Loading seasons...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Track</label>
+                <select id="rc-track" onchange="loadComparisonDrivers()">
+                    <option value="">Pick a season first</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Drivers (pick 2 or more)</label>
+                <div class="rc-drivers" id="rc-drivers">
+                    <div style="color:var(--muted);font-size:0.72em;padding:8px">Pick a track to load drivers...</div>
+                </div>
+            </div>
+            <button class="action-btn" onclick="runRaceCompare()">COMPARE RACE LAPS</button>
+            <div class="err-box" id="rc-err"></div>
+
+            <div class="dc-divider"></div>
+            <div class="panel-title">2 - Model Pace Gap (optional)</div>
+            <div class="field">
+                <label>Driver A</label>
+                <select id="dc-driver-a" onchange="updateDcYearOptions()">
+                    <option value="">Loading drivers...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Driver B</label>
+                <select id="dc-driver-b" onchange="updateDcYearOptions()">
+                    <option value="">Loading drivers...</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Season (same-year models)</label>
+                <select id="dc-year">
+                    <option value="">All seasons (aggregate)</option>
+                </select>
+            </div>
+            <button class="action-btn" onclick="runDriverCompare()">COMPARE MODELS</button>
+            <div class="err-box" id="dc-err"></div>
+            <div class="chart-note" style="margin-top:10px">Each driver has a model trained on their own race laps. On a shared track &amp; tyre, the predicted-time gap is the pace gap. Pick a season to use each driver's same-year model (apples-to-apples); drivers without that season's model fall back to their aggregate.</div>
+        </div>
+        <div class="panel teal">
+            <div class="panel-title">Race Lap Comparison</div>
+            <div class="dc-summary" id="rc-summary"></div>
+            <div class="rc-legend" id="rc-legend"></div>
+            <div class="chart-card" style="height:380px;margin-top:12px">
+                <canvas id="rcChart"></canvas>
+            </div>
+            <div class="chart-note" id="rc-note">triangle = pit in/out lap</div>
+            <table class="dc-table" id="rc-table" style="display:none">
+                <thead>
+                    <tr><th>Driver</th><th>Laps</th><th>Fastest</th><th>Avg (valid)</th><th>Tyres used</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="dc-divider"></div>
+            <div class="panel-title">Model Pace Gap</div>
+            <div class="dc-summary" id="dc-summary"></div>
+            <div class="chart-card" style="height:320px;margin-top:12px">
+                <canvas id="dcChart"></canvas>
+            </div>
+            <div class="chart-note" id="dc-note"></div>
+            <table class="dc-table" id="dc-table" style="display:none">
+                <thead>
+                    <tr><th>Track</th><th>Avg D (s)</th><th>Faster</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const TYRE_COLORS = {
+    Hypersoft:'#ff00ff', Ultrasoft:'#9400d3', Supersoft:'#ff4444',
+    Soft:'#ffdd00', Medium:'#dddddd', Hard:'#4fc3f7',
+    Intermediate:'#00c853', Wet:'#0091ea'
+};
+const PIT_COLOR = '#ffa726';
+
+let lapChart = null, tyreChart = null;
+let currentSessionId = null;
+let selectedPTyre = null, selectedPTrack = null;
+let selectedSTyre = null, selectedSTrack = null;
+let selectedEvent = null;
+let sessionFastestMs = Infinity;
+
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.f1-nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'drivers') loadDriverOptions();
+}
+
+function fmtTime(s) {
+    if (!s || isNaN(s) || s === Infinity) return '---';
+    const m = Math.floor(s / 60);
+    const sec = (s % 60).toFixed(3).padStart(6,'0');
+    return `${m}:${sec}`;
+}
+
+const CHART_SCALE = {
+    ticks:{ color:'#555', font:{ family:"'Share Tech Mono', monospace", size:10 } },
+    grid:{ color:'rgba(255,255,255,0.04)' }
+};
+
+let _currentLapsByNum = {};
+let _currentFastestTime = null;
+
+function initCharts() {
+    const lapCtx = document.getElementById('lapChart').getContext('2d');
+    lapChart = new Chart(lapCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: {
+                legend: { display: true, labels: { color: '#f0f0f0', font: { family: "'Share Tech Mono',monospace", size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        title: items => items.length ? `Race Lap ${items[0].label}` : '',
+                        label: ctx => {
+                            if (ctx.parsed.y === null || ctx.parsed.y === undefined) return '';
+                            const lapNum = ctx.label;
+                            const lap = _currentLapsByNum[lapNum];
+                            const timeStr = fmtTime(ctx.parsed.y);
+                            const isFastest = (typeof _currentFastestTime === 'number') && Math.abs(ctx.parsed.y - _currentFastestTime) < 0.0001;
+                            const tag = isFastest ? ' FASTEST' : '';
+                            if (lap && lap.tyre_compound) {
+                                const ageStr = (lap.tyre_age !== undefined && lap.tyre_age !== null) ? ` (Age: ${lap.tyre_age})` : '';
+                                return `  ${ctx.dataset.label}: ${timeStr}${tag} | ${lap.tyre_compound}${ageStr}`;
+                            }
+                            return `  ${ctx.dataset.label}: ${timeStr}${tag}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ...CHART_SCALE, title: { display: true, text: 'RACE LAP', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } },
+                y: { ...CHART_SCALE, beginAtZero: false, title: { display: true, text: 'SECONDS', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } }
+            }
+        }
+    });
+
+    const tyreCtx = document.getElementById('tyreChart').getContext('2d');
+    tyreChart = new Chart(tyreCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: {
+                legend: { display: true, labels: { color: '#f0f0f0', font: { family: "'Share Tech Mono',monospace", size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        title: items => items.length ? `Race Lap ${items[0].label}` : '',
+                        label: ctx => {
+                            if (ctx.parsed.y === null || ctx.parsed.y === undefined) return '';
+                            const lapNum = ctx.label;
+                            const lap = _currentLapsByNum[lapNum];
+                            const delta = ctx.parsed.y;
+                            const sign = delta >= 0 ? '+' : '';
+                            let ageStr = '';
+                            if (lap && lap.tyre_age !== undefined && lap.tyre_age !== null) {
+                                ageStr = ` (Age ${lap.tyre_age} lap${lap.tyre_age === 1 ? '' : 's'})`;
+                            }
+                            let rawStr = '';
+                            if (lap) {
+                                const raw = lap.lap_time !== undefined && lap.lap_time !== null ? lap.lap_time : lap.avg_lap_time;
+                                if (raw !== undefined && raw !== null) { rawStr = ` - raw ${fmtTime(parseFloat(raw))}`; }
+                            }
+                            const scrub = (lap && lap.is_valid !== undefined && lap.is_valid != 1) ? ' scrubbed' : '';
+                            const pitTag = (lap && lap.is_pit_lap) ? ((lap.has_pit_stop == 1) ? ' pit in' : ' pit out') : '';
+                            return `  ${ctx.dataset.label}: ${sign}${delta.toFixed(2)}s${ageStr}${rawStr}${scrub}${pitTag}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ...CHART_SCALE, title: { display: true, text: 'RACE LAP', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } },
+                y: { ...CHART_SCALE, beginAtZero: false, title: { display: true, text: 'DELTA VS STINT TREND (S)', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } }
+            }
+        }
+    });
+}
+
+let _sessionsCache = [];
+
+function getTrackName(sessionId) {
+    const cached = _sessionsCache.find(s => String(s.session_id) === String(sessionId));
+    return cached ? cached.track_name : '---';
+}
+
+function showSessionInfo({ track, fastest, lastLap, tyre }, sessionId) {
+    const trackName = track || getTrackName(sessionId);
+    setStatVal('info-track', trackName);
+    if (fastest) setStatVal('info-fastest', fastest);
+    if (lastLap) setStatVal('info-lastlap', lastLap);
+    if (tyre) setStatVal('info-tyre', tyre);
+}
+
+async function loadSession(id) {
+    currentSessionId = id;
+    await Promise.all([loadLapChart(id), loadTyreChart(id)]);
+    updateCircuitBanner(id);
+    const cached = _sessionsCache.find(s => String(s.session_id) === String(id));
+    if (cached) highlightCalendarRow(cached.track_name);
+}
+
+async function loadLapChart(id) {
+    const noData = document.getElementById('lapNoData');
+    const canvas = document.getElementById('lapChart');
+    try {
+        const res = await fetch(`/api/session/${id}/laps`);
+        const laps = await res.json();
+        if (laps.error) throw new Error(laps.error);
+
+        if (!laps || !laps.length) {
+            noData.textContent = 'NO LAP DATA';
+            noData.style.display = 'flex';
+            canvas.style.display = 'none';
+            showSessionInfo({ track: getTrackName(id), fastest: '---', lastLap: '---', tyre: '---' }, id);
+            return;
+        }
+
+        const validLaps = laps.filter(l => (l.is_valid == 1 || l.is_valid === true) && parseFloat(l.lap_time) > 0);
+        if (!validLaps.length) {
+            noData.textContent = 'NO VALID LAPS';
+            noData.style.display = 'flex';
+            canvas.style.display = 'none';
+            showSessionInfo({ track: getTrackName(id), fastest: '---', lastLap: '---', tyre: '---' }, id);
+            return;
+        }
+
+        noData.style.display = 'none';
+        canvas.style.display = 'block';
+
+        const validTimes = validLaps.map(l => parseFloat(l.lap_time));
+        const fastest = Math.min(...validTimes);
+        _currentFastestTime = fastest;
+        const lastLap = validLaps[validLaps.length - 1];
+        const lastTime = parseFloat(lastLap.lap_time);
+
+        const tyresUsed = [...new Set(validLaps.map(l => l.tyre_compound).filter(Boolean))];
+        const tyreStr = tyresUsed.join(' / ') || '---';
+
+        showSessionInfo({ track: getTrackName(id), fastest: fmtTime(fastest), lastLap: fmtTime(lastTime), tyre: tyreStr }, id);
+
+        laps.forEach(l => { _currentLapsByNum[l.lap_number] = l; });
+
+        const lapNumbers = laps.map(l => parseInt(l.lap_number)).filter(n => !isNaN(n));
+        const minLap = Math.min(...lapNumbers);
+        const maxLap = Math.max(...lapNumbers);
+        const allLapNumbers = [];
+        for (let i = minLap; i <= maxLap; i++) allLapNumbers.push(i);
+
+        const numericData = allLapNumbers.map(num => {
+            const l = _currentLapsByNum[num];
+            if (l && (l.is_valid == 1 || l.is_valid === true) && parseFloat(l.lap_time) > 0) return parseFloat(l.lap_time);
+            return null;
+        });
+
+        const pointColors = numericData.map(val => (val !== null && Math.abs(val - fastest) < 0.0001) ? '#ffd700' : '#00d2be');
+        const pointRadii  = numericData.map(val => (val !== null && Math.abs(val - fastest) < 0.0001) ? 7 : 4);
+
+        lapChart.data.labels = allLapNumbers;
+        lapChart.data.datasets = [{
+            label: 'Lap Time', data: numericData, borderColor: '#00d2be', backgroundColor: 'rgba(0,210,190,0.05)',
+            borderWidth: 2, pointRadius: pointRadii, pointBackgroundColor: pointColors, pointBorderColor: pointColors,
+            pointHitRadius: 10, pointHoverRadius: 8, tension: 0.3, fill: true, spanGaps: true
+        }];
+        lapChart.resize();
+        lapChart.update();
+    } catch(e) {
+        noData.textContent = `ERROR: ${e.message}`;
+        noData.style.display = 'flex';
+        canvas.style.display = 'none';
+    }
+}
+
+async function loadTyreChart(id) {
+    const noData = document.getElementById('tyreNoData');
+    const canvas = document.getElementById('tyreChart');
+    try {
+        const res = await fetch(`/api/session/${id}/tyre-degradation`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        if (!data || !data.length) {
+            noData.textContent = 'NO TYRE DATA';
+            noData.style.display = 'flex';
+            canvas.style.display = 'none';
+            document.getElementById('tyreChartNote').style.display = 'none';
+            return;
+        }
+
+        noData.style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('tyreChartNote').style.display = 'block';
+
+        const laps = data.slice().sort((a, b) => (parseInt(a.lap_number) || 0) - (parseInt(b.lap_number) || 0));
+        laps.forEach(l => { _currentLapsByNum[l.lap_number] = l; });
+
+        const lapNumbers = laps.map(l => parseInt(l.lap_number)).filter(n => !isNaN(n));
+        const minLap = Math.min(...lapNumbers);
+        const maxLap = Math.max(...lapNumbers);
+        const allLapNumbers = [];
+        for (let i = minLap; i <= maxLap; i++) allLapNumbers.push(i);
+
+        const stints = [];
+        let currentStint = null;
+        let stintCount = 0;
+
+        for (let i = 0; i < laps.length; i++) {
+            const lap = laps[i];
+            const prevLap = i > 0 ? laps[i - 1] : null;
+            const isNewStint = !currentStint || (prevLap && (
+                prevLap.has_pit_stop == 1 ||
+                (lap.tyre_compound && prevLap.tyre_compound && lap.tyre_compound !== prevLap.tyre_compound) ||
+                (lap.tyre_age !== null && prevLap.tyre_age !== null && lap.tyre_age < prevLap.tyre_age)
+            ));
+            if (isNewStint) {
+                stintCount++;
+                currentStint = { stintNumber: stintCount, compound: lap.tyre_compound || 'Unknown', lapMap: {} };
+                stints.push(currentStint);
+            }
+            currentStint.lapMap[lap.lap_number] = lap;
+        }
+
+        // Build one continuous dataset with per-point color/style
+        // so the line connects across stint boundaries (gaps only at
+        // null laps, not between datasets).
+        const allData = [];
+        const allStyles = [];
+        const allRadii = [];
+        const allBg = [];
+        const allBorder = [];
+        let lapColor = '#00d2be';
+        allLapNumbers.forEach(num => {
+            let lap = null;
+            for (const stint of stints) { if (stint.lapMap[num]) { lap = stint.lapMap[num]; lapColor = TYRE_COLORS[stint.compound] || '#00d2be'; break; } }
+            if (lap) {
+                const delta = parseFloat(lap.is_pit_lap ? lap.pit_delta : lap.stint_delta);
+                allData.push(isNaN(delta) ? null : delta);
+                allStyles.push(lap.is_pit_lap ? 'rectRot' : 'circle');
+                allRadii.push(lap.is_pit_lap ? 8 : 4);
+                allBg.push(lap.is_pit_lap ? PIT_COLOR : lapColor);
+            } else {
+                allData.push(null);
+                allStyles.push('circle');
+                allRadii.push(4);
+                allBg.push(lapColor);
+            }
+        });
+        const datasets = [{
+            label: 'Stint Residuals', borderColor: '#00d2be', backgroundColor: 'transparent',
+            segment: { borderColor: (ctx) => { const n = allLapNumbers[ctx.p0DataIndex]; let c = '#00d2be'; for (const s of stints) { if (s.lapMap[n]) { c = TYRE_COLORS[s.compound] || '#00d2be'; break; } } return c; } },
+            borderWidth: 2, pointStyle: allStyles, pointRadius: allRadii, pointBackgroundColor: allBg,
+            pointBorderColor: allBg, pointHitRadius: 10, pointHoverRadius: 8, tension: 0.3, spanGaps: true, data: allData
+        }];
+
+        tyreChart.data.labels = allLapNumbers;
+        tyreChart.data.datasets = datasets;
+
+        // Clamp y-axis to non-pit residual range so huge pit deltas
+        // (±20-40s) don't squash the ±0.5s band into invisibility.
+        // Pit diamonds still render but appear clipped at chart edges.
+        const allVals = [];
+        datasets.forEach(ds => ds.data.forEach((v, i) => {
+            if (v !== null && !isNaN(v) && ds.pointStyle[i] === 'circle') allVals.push(Math.abs(v));
+        }));
+        if (allVals.length > 2) {
+            allVals.sort((a, b) => a - b);
+            const q3 = allVals[Math.floor(allVals.length * 0.95)] || 3;
+            const yMax = Math.max(2, q3 * 1.3);
+            tyreChart.options.scales.y.min = -yMax;
+            tyreChart.options.scales.y.max = yMax;
+        }
+
+        tyreChart.resize();
+        tyreChart.update();
+    } catch(e) {
+        noData.textContent = `ERROR: ${e.message}`;
+        noData.style.display = 'flex';
+        canvas.style.display = 'none';
+        document.getElementById('tyreChartNote').style.display = 'none';
+    }
+}
+
+// LIVE STATS POLLING
+async function updateStats() {
+    try {
+        const url = selectedDashboardDriver
+            ? `/api/latest-lap?driver=${encodeURIComponent(selectedDashboardDriver)}`
+            : '/api/latest-lap';
+        const res = await fetch(url);
+        const lap = await res.json();
+        if (lap && lap.live && lap.lap_time) {
+            const t = parseFloat(lap.lap_time);
+            setStatVal('stat-laptime', fmtTime(t));
+            setStatVal('stat-track', lap.track_name || '---');
+            setStatVal('stat-tyre', lap.tyre_compound || '---');
+            setStatVal('stat-lap', lap.lap_number || '---');
+            if (t < sessionFastestMs) { sessionFastestMs = t; setStatVal('stat-fastest', fmtTime(t)); }
+            if (!currentSessionId) {
+                setStatVal('info-track', lap.track_name || '---');
+                setStatVal('info-lastlap', fmtTime(t));
+                if (sessionFastestMs < Infinity) setStatVal('info-fastest', fmtTime(sessionFastestMs));
+                if (lap.tyre_compound) setStatVal('info-tyre', lap.tyre_compound);
+            }
+            setLiveBadge(true);
+        } else {
+            setStatVal('stat-laptime', '---');
+            setStatVal('stat-fastest', '---');
+            setStatVal('stat-track', '---');
+            setStatVal('stat-tyre', '---');
+            setStatVal('stat-lap', '---');
+            sessionFastestMs = Infinity;
+            if (!currentSessionId) {
+                setStatVal('info-track', '---');
+                setStatVal('info-lastlap', '---');
+                setStatVal('info-fastest', '---');
+                setStatVal('info-tyre', '---');
+            }
+            setLiveBadge(false);
+        }
+    } catch(e) {}
+}
+
+function setLiveBadge(live) {
+    const badge = document.querySelector('.f1-live-badge');
+    if (!badge) return;
+    const text = badge.querySelector('.f1-live-text');
+    if (text) text.textContent = live ? 'LIVE TELEMETRY' : 'STANDBY';
+    badge.classList.toggle('standby', !live);
+}
+
+function setStatVal(id, val) {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== String(val)) {
+        el.textContent = val;
+        el.classList.remove('flash');
+        void el.offsetWidth;
+        el.classList.add('flash');
+    }
+}
+
+// MODEL OPTIONS
+async function loadOptions() {
+    try {
+        const res = await fetch('/api/predict/options');
+        if (!res.ok) throw new Error('Model not loaded');
+        const opts = await res.json();
+        if (opts.error) throw new Error(opts.error);
+        buildTyreGrid('p-tyre-grid', opts.tyres, 'predict');
+        buildTrackGrid('p-track-grid', opts.tracks, 'predict');
+        buildTyreGrid('s-tyre-grid', opts.tyres, 'strategy');
+        buildTrackGrid('s-track-grid', opts.tracks, 'strategy');
+    } catch(e) {
+        ['p-tyre-grid','p-track-grid','s-tyre-grid','s-track-grid'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = `<div style="color:#ff6666;font-family:'Share Tech Mono',monospace;font-size:0.7em;padding:8px">${e.message}</div>`;
+        });
+    }
+}
+
+function buildTyreGrid(gridId, tyres, scope) {
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
+    grid.innerHTML = '';
+    tyres.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        const color = TYRE_COLORS[t.name] || '#aaa';
+        btn.innerHTML = `<span class="tyre-dot" style="background:${color}"></span>${t.name}<span class="opt-tag">${t.type}</span>`;
+        btn.onclick = () => { grid.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); if (scope === 'predict') selectedPTyre = t.name; else selectedSTyre = t.name; };
+        grid.appendChild(btn);
+    });
+}
+
+function buildTrackGrid(gridId, tracks, scope) {
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
+    grid.innerHTML = '';
+    tracks.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        btn.textContent = t;
+        btn.onclick = () => { grid.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); if (scope === 'predict') selectedPTrack = t; else selectedSTrack = t; };
+        grid.appendChild(btn);
+    });
+}
+
+// LAP PREDICTOR
+async function runPredict() {
+    const btn = document.getElementById('predict-btn');
+    const err = document.getElementById('predict-err');
+    err.style.display = 'none';
+    const age = document.getElementById('p-age').value;
+    const lapNumber = document.getElementById('p-lap-number').value;
+    if (!age || !lapNumber || !selectedPTyre || !selectedPTrack) {
+        err.textContent = 'Fill all fields and select a tyre + track.';
+        err.style.display = 'block'; return;
+    }
+    btn.disabled = true; btn.textContent = 'COMPUTING...';
+    try {
+        const res = await fetch('/api/predict', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ tyre_age:parseFloat(age), lap_number:parseInt(lapNumber, 10), tyre_compound:selectedPTyre, track_name:selectedPTrack })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        document.getElementById('result-empty').style.display = 'none';
+        document.getElementById('result-content').classList.add('show');
+        const color = TYRE_COLORS[data.tyre_compound] || '#00d2be';
+        const rt = document.getElementById('result-time');
+        rt.textContent = data.formatted; rt.style.color = color; rt.style.textShadow = `0 0 28px ${color}55`;
+        document.getElementById('result-secs').textContent = data.predicted_time.toFixed(3) + ' seconds';
+        document.getElementById('res-track').textContent = data.track;
+        document.getElementById('res-tyre').innerHTML = `<span class="tyre-dot-lg" style="background:${color}"></span>${data.tyre_compound}`;
+        document.getElementById('res-age').textContent = data.tyre_age + ' laps';
+        document.getElementById('res-fuel').textContent = data.fuel_load.toFixed(1) + ' kg';
+    } catch(e) {
+        err.textContent = 'Error: ' + e.message; err.style.display = 'block';
+    }
+    btn.disabled = false; btn.textContent = 'PREDICT LAP TIME';
+}
+
+// STRATEGY ADVISOR
+function selectEvent(ev) {
+    document.querySelectorAll('.event-btn').forEach(b => b.classList.remove('sel'));
+    document.getElementById('ev-' + ev)?.classList.add('sel');
+    selectedEvent = ev;
+}
+
+async function runStrategy() {
+    const err = document.getElementById('strategy-err');
+    err.style.display = 'none';
+    const curLap = document.getElementById('s-curlap').value;
+    const totLaps = document.getElementById('s-totlaps').value;
+    const age = document.getElementById('s-age').value;
+    if (!curLap || !totLaps || !age || !selectedSTyre || !selectedSTrack) {
+        err.textContent = 'Fill all fields, select tyre + track.'; err.style.display = 'block'; return;
+    }
+    if (!selectedEvent) {
+        err.textContent = 'Select a race event (VSC, Safety Car, Rain, Crash).'; err.style.display = 'block'; return;
+    }
+    try {
+        const res = await fetch('/api/strategy/analyze', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ current_lap:parseInt(curLap), total_laps:parseInt(totLaps), current_tyre:selectedSTyre, current_age:parseInt(age), track:selectedSTrack, event_type:selectedEvent })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showStrategyResult(data);
+    } catch(e) {
+        err.textContent = 'Error: ' + e.message; err.style.display = 'block';
+    }
+}
+
+function showStrategyResult(data) {
+    document.getElementById('strat-empty').style.display = 'none';
+    document.getElementById('strat-result').classList.add('show');
+    document.getElementById('strat-options').innerHTML = data.strategies.map((s, i) => {
+        const mins = Math.floor(s.total_time / 60);
+        const secs = (s.total_time % 60).toFixed(1);
+        const riskColor = s.risk === 'Low' ? '#00ff88' : s.risk === 'High' ? '#ff4444' : '#ffdd00';
+        return `<div class="strat-option${i === 0 ? ' best' : ''}"><div class="strat-badge">RECOMMENDED</div><div class="strat-opt-title">${s.option}</div><div class="strat-desc">${s.description}</div><div class="strat-stats"><div>TIME <span>${mins}m ${secs}s</span></div><div>STOPS <span>${s.pit_stops}</span></div><div>RISK <span style="color:${riskColor}">${s.risk}</span></div></div></div>`;
+    }).join('');
+    document.getElementById('strat-rec').innerHTML = `<div class="strat-rec-title">Recommendation</div><div class="strat-rec-action">${data.recommendation.action}</div><div class="strat-rec-reason">${data.recommendation.reason}</div>`;
+}
+
+// DRIVER COMPARISON: RACE DATA
+const RC_COLORS = ['#00e5ff', '#ffdd00', '#ff6b6b', '#00c853', '#c792ea', '#ffa726', '#4fc3f7', '#ff8a65'];
+let rcChart = null;
+
+function renderRaceLegend(data, codes) {
+    const el = document.getElementById('rc-legend');
+    if (!el) return;
+    el.innerHTML = '<span class="rc-legend-title">DRIVER</span>' +
+        codes.map((code, i) => `<span class="rc-leg-item"><i class="rc-leg-line" style="border-top-color:${RC_COLORS[i % RC_COLORS.length]}"></i>${badgeifyDriver(code, data.drivers[code].name)}</span>`).join('') +
+        '<span class="rc-leg-item"><i class="rc-leg-dot" style="background:' + PIT_COLOR + '"></i>pit in/out</span>';
+}
+
+async function loadComparisonYears() {
+    const sel = document.getElementById('rc-year');
+    try {
+        const res = await fetch('/api/comparison/years');
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.years || !data.years.length) { sel.innerHTML = '<option value="">No race data imported yet</option>'; return; }
+        sel.innerHTML = '<option value="">Pick a season...</option>' + data.years.map(y => `<option value="${y}">${y}</option>`).join('');
+    } catch(e) { sel.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+}
+
+async function loadComparisonTracks() {
+    const year = document.getElementById('rc-year').value;
+    const sel = document.getElementById('rc-track');
+    const box = document.getElementById('rc-drivers');
+    box.innerHTML = '<div style="color:var(--muted);font-size:0.72em;padding:8px">Pick a track to load drivers...</div>';
+    if (!year) { sel.innerHTML = '<option value="">Pick a season first</option>'; return; }
+    try {
+        const res = await fetch(`/api/comparison/tracks?year=${encodeURIComponent(year)}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.tracks || !data.tracks.length) { sel.innerHTML = '<option value="">No races that season</option>'; return; }
+        sel.innerHTML = '<option value="">Pick a track...</option>' + data.tracks.map(t => `<option value="${t}">${t}</option>`).join('');
+    } catch(e) { sel.innerHTML = `<option value="">Error: ${e.message}</option>`; }
+}
+
+async function loadComparisonDrivers() {
+    const year = document.getElementById('rc-year').value;
+    const track = document.getElementById('rc-track').value;
+    const box = document.getElementById('rc-drivers');
+    if (!year || !track) { box.innerHTML = '<div style="color:var(--muted);font-size:0.72em;padding:8px">Pick a track to load drivers...</div>'; return; }
+    try {
+        const res = await fetch(`/api/comparison/drivers?year=${encodeURIComponent(year)}&track=${encodeURIComponent(track)}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.drivers || !data.drivers.length) { box.innerHTML = '<div style="color:var(--muted);font-size:0.72em;padding:8px">No drivers found for that race</div>'; return; }
+        box.innerHTML = data.drivers.map(d =>
+            `<label class="rc-driver" id="rc-drv-${d.code}"><input type="checkbox" value="${d.code}" onchange="toggleRcDriver('${d.code}')"><span>${badgeifyDriver(d.code, d.name)}<br><small>${d.date || '?'} / ${d.laps} laps</small></span></label>`
+        ).join('');
+    } catch(e) { box.innerHTML = `<div style="color:var(--muted);font-size:0.72em;padding:8px">Error: ${e.message}</div>`; }
+}
+
+function toggleRcDriver(code) {
+    const lbl = document.getElementById('rc-drv-' + code);
+    if (lbl) lbl.classList.toggle('selected', lbl.querySelector('input').checked);
+}
+
+async function runRaceCompare() {
+    const year = document.getElementById('rc-year').value;
+    const track = document.getElementById('rc-track').value;
+    const checked = [...document.querySelectorAll('#rc-drivers input:checked')].map(i => i.value);
+    const err = document.getElementById('rc-err');
+    err.style.display = 'none';
+    if (!year || !track) { err.textContent = 'Pick a season and a track first.'; err.style.display = 'block'; return; }
+    if (checked.length < 2) { err.textContent = 'Select at least two drivers.'; err.style.display = 'block'; return; }
+    try {
+        const res = await fetch(`/api/comparison/race?year=${encodeURIComponent(year)}&track=${encodeURIComponent(track)}&drivers=${checked.join(',')}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderRaceCompare(data);
+    } catch(e) { err.textContent = 'Error: ' + e.message; err.style.display = 'block'; }
+}
+
+function renderRaceCompare(data) {
+    const codes = Object.keys(data.drivers);
+    const ctx = document.getElementById('rcChart').getContext('2d');
+    if (rcChart) rcChart.destroy();
+    const datasets = codes.map((code, i) => {
+        const color = RC_COLORS[i % RC_COLORS.length];
+        const d = data.drivers[code];
+        const laps = d.laps;
+        return {
+            label: `${d.name} (${code})`,
+            data: laps.map(l => ({ x: l.lap_number, y: l.lap_time })),
+            borderColor: color, backgroundColor: color, borderWidth: 2,
+            pointRadius: laps.map(l => l.has_pit_stop ? 6 : 3),
+            pointStyle: laps.map(l => l.has_pit_stop ? 'triangle' : 'circle'),
+            pointBackgroundColor: laps.map(l => l.has_pit_stop ? PIT_COLOR : color),
+            pointBorderColor: laps.map(l => l.has_pit_stop ? PIT_COLOR : color),
+            pointBorderWidth: 1, pointHitRadius: 10, pointHoverRadius: 8, spanGaps: false,
+        };
+    });
+    rcChart = new Chart(ctx, {
+        type: 'line', data: { datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: items => `Lap ${items[0].parsed.x}`,
+                        label: item => {
+                            const code = item.dataset.label.split(' (')[1].replace(')', '');
+                            const d = data.drivers[code];
+                            const lap = d.laps.find(l => l.lap_number === item.parsed.x);
+                            if (!lap) return `  ${item.dataset.label}: ${item.parsed.y.toFixed(3)}s`;
+                            const pit = lap.has_pit_stop ? ' PIT' : '';
+                            const inv = lap.is_valid ? '' : ' (INVALID)';
+                            const lines = [`  ${item.dataset.label}: ${item.parsed.y.toFixed(3)}s | ${lap.tyre_compound} age ${lap.tyre_age}${pit}${inv}`];
+                            if (lap.telemetry && lap.telemetry.avg_speed != null) {
+                                lines.push(`  avg ${lap.telemetry.avg_speed} km/h top ${lap.telemetry.top_speed ?? '---'} gear ${lap.telemetry.avg_gear ?? '---'} ${lap.telemetry.avg_rpm ?? '---'} rpm`);
+                            }
+                            return lines;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { type: 'linear', ...CHART_SCALE, ticks: { ...CHART_SCALE.ticks, stepSize: 5 }, title: { display: true, text: 'RACE LAP', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } },
+                y: { ...CHART_SCALE, beginAtZero: false, title: { display: true, text: 'SECONDS', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } }
+            }
+        }
+    });
+
+    renderRaceLegend(data, codes);
+
+    const rows = codes.map(code => {
+        const d = data.drivers[code];
+        const valid = d.laps.filter(l => l.is_valid);
+        const fastest = valid.length ? Math.min(...valid.map(l => l.lap_time)) : null;
+        const avg = valid.length ? valid.reduce((s, l) => s + l.lap_time, 0) / valid.length : null;
+        const tyres = [...new Set(d.laps.map(l => l.tyre_compound).filter(Boolean))].join(', ');
+        return { code, name: d.name, laps: d.laps.length, fastest, avg, tyres };
+    });
+    const bestAvg = Math.min(...rows.filter(r => r.avg).map(r => r.avg));
+    const tbody = document.querySelector('#rc-table tbody');
+    tbody.innerHTML = rows.map(r =>
+        `<tr><td>${badgeifyDriver(r.code, r.name)}</td><td>${r.laps}</td><td>${r.fastest ? fmtTime(r.fastest) : '---'}</td><td>${r.avg ? fmtTime(r.avg) : '---'}</td><td>${r.tyres || '---'}</td></tr>`
+    ).join('');
+    document.getElementById('rc-table').style.display = 'table';
+
+    const fastestName = rows.find(r => r.avg === bestAvg);
+    if (!fastestName) {
+        document.getElementById('rc-summary').innerHTML = '<span class="dc-big">No valid laps</span> --- nothing to compare.';
+    } else {
+        const gapNote = rows.filter(r => r.avg && r !== fastestName).map(r => `${r.code} +${(r.avg - bestAvg).toFixed(3)}s`).join(', ');
+        document.getElementById('rc-summary').innerHTML = `<span class="dc-big">${fastestName.name} (${fastestName.code})</span> fastest average valid pace (${fmtTime(bestAvg)}) --- ${gapNote || 'only driver with valid laps'}.`;
+    }
+    if (data.missing && data.missing.length) {
+        document.getElementById('rc-note').textContent = `No race data for: ${data.missing.join(', ')}`;
+    }
+}
+
+// DRIVER COMPARISON: MODELS
+let dcChart = null;
+let driverModels = [];
+
+async function loadDriverOptions() {
+    const selA = document.getElementById('dc-driver-a');
+    const selB = document.getElementById('dc-driver-b');
+    const yearSel = document.getElementById('dc-year');
+    const prevA = selA.value;
+    const prevB = selB.value;
+    const prevYear = yearSel.value;
+    try {
+        const res = await fetch('/api/drivers');
+        const drivers = await res.json();
+        if (drivers.error || !drivers.length) {
+            const msg = drivers.error || 'No per-driver models.';
+            selA.innerHTML = `<option value="">${msg}</option>`;
+            selB.innerHTML = `<option value="">${msg}</option>`;
+            return;
+        }
+        driverModels = drivers;
+        const opts = drivers.map(d => `<option value="${d.code}">${d.name} (${d.code}) --- ${d.tracks.length} tracks, ${d.laps} laps${d.years && d.years.length ? ` / ${d.years.join(', ')} seasons` : ''}</option>`).join('');
+        selA.innerHTML = '<option value="">Select driver A...</option>' + opts;
+        selB.innerHTML = '<option value="">Select driver B...</option>' + opts;
+        const codes = drivers.map(d => d.code);
+        if (codes.includes(prevA)) selA.value = prevA;
+        if (codes.includes(prevB)) selB.value = prevB;
+        updateDcYearOptions();
+        if (prevYear && [...yearSel.options].some(o => o.value === prevYear)) yearSel.value = prevYear;
+    } catch(e) {
+        const msg = 'Error loading drivers: ' + e.message;
+        selA.innerHTML = `<option value="">${msg}</option>`;
+        selB.innerHTML = `<option value="">${msg}</option>`;
+    }
+}
+
+function dcYearsFor(code) {
+    const d = driverModels.find(m => m.code === code);
+    return (d && d.years) ? d.years : [];
+}
+
+function updateDcYearOptions() {
+    const sel = document.getElementById('dc-year');
+    const a = document.getElementById('dc-driver-a').value;
+    const b = document.getElementById('dc-driver-b').value;
+    const base = '<option value="">All seasons (aggregate)</option>';
+    if (!a || !b) { sel.innerHTML = base; return; }
+    const common = dcYearsFor(a).filter(y => dcYearsFor(b).includes(y));
+    sel.innerHTML = base + common.map(y => `<option value="${y}">${y} season</option>`).join('');
+}
+
+function fmtDelta(d, aCode, bCode) {
+    const who = d < 0 ? aCode + ' faster' : (d > 0 ? bCode + ' faster' : 'even');
+    return `${d >= 0 ? '+' : ''}${d.toFixed(3)}s (${who})`;
+}
+
+async function runDriverCompare() {
+    const a = document.getElementById('dc-driver-a').value;
+    const b = document.getElementById('dc-driver-b').value;
+    const year = document.getElementById('dc-year').value;
+    const err = document.getElementById('dc-err');
+    err.style.display = 'none';
+    if (!a || !b) { err.textContent = 'Select both drivers.'; err.style.display = 'block'; return; }
+    if (a === b) { err.textContent = 'Pick two different drivers.'; err.style.display = 'block'; return; }
+    try {
+        const url = `/api/drivers/compare?driver_a=${encodeURIComponent(a)}&driver_b=${encodeURIComponent(b)}` + (year ? `&year=${encodeURIComponent(year)}` : '');
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const s = data.summary;
+        const modelsLabel = s.year_used ? `${s.year_used} same-season models` : (year ? `aggregate fallback (no ${year} model for one driver)` : 'aggregate all-seasons models');
+        let summaryHtml;
+        if (s.avg_delta == null || s.shared_tracks === 0) {
+            summaryHtml = `<span class="dc-big">No shared tracks</span> --- ${data.driver_a.name} and ${data.driver_b.name} have no (track, tyre) pair in common.`;
+        } else {
+            summaryHtml = `<span class="dc-big">${s.faster_name} (${s.faster_code})</span> is on average <b>${Math.abs(s.avg_delta).toFixed(3)}s/lap</b> faster across ${s.shared_tracks} shared track(s) --- using <b>${modelsLabel}</b>. Delta = ${data.driver_a.code} - ${data.driver_b.code}.`;
+        }
+        const sig = s.significance;
+        if (sig && sig.label && s.avg_delta != null) {
+            const pTxt = sig.p_value != null ? `p=${sig.p_value.toFixed(3)}` : 'n/a';
+            const nTxt = `n=${sig.n} track${sig.n === 1 ? '' : 's'}`;
+            if (sig.label === 'significant') summaryHtml += `<div class="dc-sig dc-sig-good">Statistically significant (${pTxt}, ${nTxt}) --- ${sig.note}</div>`;
+            else if (sig.label === 'suggestive') summaryHtml += `<div class="dc-sig dc-sig-warn">Suggestive (${pTxt}, ${nTxt}) --- ${sig.note}</div>`;
+            else if (sig.label === 'inconclusive') summaryHtml += `<div class="dc-sig dc-sig-bad">Within model noise (${pTxt}, ${nTxt}) --- ${sig.note}</div>`;
+            else summaryHtml += `<div class="dc-sig dc-sig-mute">--- ${sig.note}</div>`;
+        }
+        document.getElementById('dc-summary').innerHTML = summaryHtml;
+        document.getElementById('dc-note').textContent = 'Green bar = ' + data.driver_a.code + ' faster / Red = ' + data.driver_b.code + ' faster.';
+
+        const tracks = data.per_track.map(t => t.track);
+        const deltas = data.per_track.map(t => t.avg_delta);
+        const colors = deltas.map(d => d <= 0 ? '#2ecc71' : '#ff6b6b');
+        const ctx = document.getElementById('dcChart').getContext('2d');
+        if (dcChart) dcChart.destroy();
+        dcChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: tracks, datasets: [{ label: 'Avg Delta (s)', data: deltas, backgroundColor: colors }] },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtDelta(c.parsed.x, data.driver_a.code, data.driver_b.code) } } },
+                scales: {
+                    x: { ...CHART_SCALE, title: { display: true, text: 'SECONDS', color: '#888', font: { family: "'Share Tech Mono',monospace", size: 10 } } },
+                    y: { ...CHART_SCALE }
+                }
+            }
+        });
+
+        const tbody = document.querySelector('#dc-table tbody');
+        tbody.innerHTML = data.per_track.map(t => {
+            const who = t.avg_delta < 0 ? data.driver_a.code : (t.avg_delta > 0 ? data.driver_b.code : '---');
+            return `<tr><td>${t.track}</td><td>${t.avg_delta >= 0 ? '+' : ''}${t.avg_delta.toFixed(3)}</td><td>${who}</td></tr>`;
+        }).join('');
+        document.getElementById('dc-table').style.display = 'table';
+    } catch(e) { err.textContent = 'Error: ' + e.message; err.style.display = 'block'; }
+}
+
+// DASHBOARD DRIVER FILTER
+let selectedDashboardDriver = '';
+
+async function loadDashboardDrivers() {
+    const sel = document.getElementById('dash-driver');
+    try {
+        const res = await fetch('/api/drivers/list');
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const drivers = data.drivers || [];
+        sel.innerHTML = '<option value="">All drivers</option>' + drivers.map(d => `<option value="${d.code}">${d.name} (${d.code}) --- ${d.sessions} session${d.sessions === 1 ? '' : 's'}</option>`).join('');
+    } catch(e) { sel.innerHTML = '<option value="">All drivers</option>'; }
+}
+
+function onDashboardDriverChange() {
+    selectedDashboardDriver = document.getElementById('dash-driver').value;
+    sessionFastestMs = Infinity;
+    setStatVal('stat-fastest', '--:--.---');
+    loadSessionsWithCache();
+    updateStats();
+}
+
+// SESSIONS SIDEBAR
+async function loadSessionsWithCache() {
+    const list = document.getElementById('sessions-list');
+    try {
+        const url = selectedDashboardDriver ? `/api/sessions?driver=${encodeURIComponent(selectedDashboardDriver)}` : '/api/sessions';
+        const res = await fetch(url);
+        const sessions = await res.json();
+        _sessionsCache = Array.isArray(sessions) ? sessions : [];
+        if (sessions.error) throw new Error(sessions.error);
+        if (!sessions.length) { list.innerHTML = '<div class="no-data" style="height:80px">NO SESSIONS YET</div>'; return; }
+        list.innerHTML = '';
+        sessions.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = 'session-item' + (i === 0 ? ' active' : '');
+            div.innerHTML = `<div class="sesh-track">${s.track_name}</div><div class="sesh-meta">${s.driver_code ? badgeifyDriver(s.driver_code, '') + ' / ' : ''}${s.date || ''} / ${s.total_laps} laps</div><div class="sesh-best">${s.fastest_lap ? fmtTime(s.fastest_lap) : 'N/A'}</div>`;
+            div.onclick = () => { document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active')); div.classList.add('active'); loadSession(s.session_id); };
+            list.appendChild(div);
+            if (i === 0) loadSession(s.session_id);
+        });
+    } catch(e) { list.innerHTML = `<div class="no-data" style="height:80px;color:#ff6666">ERROR: ${e.message}</div>`; }
+}
+
+// F1 INFO BAR: Clocks + Circuit Banner
+
+const CIRCUIT_FLAGS = {
+    'Albert Park':'au','Melbourne':'au','Bahrain':'bh','Sakhir':'bh',
+    'Jeddah':'sa','Saudi Arabia':'sa','Miami':'us','Imola':'it',
+    'Emilia-Romagna':'it','Monaco':'mc','Monte Carlo':'mc','Spain':'es',
+    'Montmelo':'es','Barcelona':'es','Montreal':'ca','Canada':'ca',
+    'Austria':'at','Spielberg':'at','Red Bull Ring':'at','Silverstone':'gb','Britain':'gb',
+    'Great Britain':'gb','Hungary':'hu','Hungaroring':'hu','Belgium':'be',
+    'Spa':'be','Spa-Francorchamps':'be','Netherlands':'nl','Zandvoort':'nl',
+    'Italy':'it','Monza':'it','Singapore':'sg','Japan':'jp',
+    'Suzuka':'jp','Qatar':'qa','Lusail':'qa','USA':'us','United States':'us','Austin':'us',
+    'COTA':'us','Mexico':'mx','Hermanos Rodriguez':'mx','Brazil':'br','Sao Paulo':'br','São Paulo':'br',
+    'Interlagos':'br','Las Vegas':'us','Abu Dhabi':'ae','Yas Marina':'ae','Yas Island':'ae',
+    'China':'cn','Shanghai':'cn','Baku':'az','Azerbaijan':'az',
+    'Portugal':'pt','Algarve':'pt','Istanbul':'tr','Turkey':'tr',
+    'Sochi':'ru','Russia':'ru',
+    'Mugello':'it','Enzo e Dino Ferrari':'it','Nurburgring':'de','Hockenheim':'de','Germany':'de',
+    'Paul Ricard':'fr','Le Castellet':'fr','France':'fr',
+};
+
+function getFlagUrl(trackName) {
+    if (!trackName) return null;
+    const code = CIRCUIT_FLAGS[trackName];
+    if (code) return `/static/flags/${code}.png`;
+    // Strip accents for fuzzy matching (São Paulo -> Sao Paulo)
+    const norm = trackName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normCode = CIRCUIT_FLAGS[norm];
+    if (normCode) return `/static/flags/${normCode}.png`;
+    for (const [key, c] of Object.entries(CIRCUIT_FLAGS)) {
+        const keyNorm = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (trackName.includes(key) || key.includes(trackName) ||
+            norm.includes(keyNorm) || keyNorm.includes(norm)) {
+            return `/static/flags/${c}.png`;
+        }
+    }
+    return null;
+}
+
+function getFlagEmoji(trackName) {
+    if (!trackName) return '';
+    const map = {
+        'Albert Park':'au','Melbourne':'au','Bahrain':'bh','Sakhir':'bh',
+        'Jeddah':'sa','Saudi Arabia':'sa','Miami':'us','Imola':'it',
+        'Monaco':'mc','Spain':'es','Montreal':'ca','Canada':'ca',
+        'Austria':'at','Silverstone':'gb','Britain':'gb','Hungary':'hu',
+        'Belgium':'be','Netherlands':'nl','Italy':'it','Singapore':'sg',
+        'Japan':'jp','Qatar':'qa','USA':'us','Austin':'us','Mexico':'mx',
+        'Brazil':'br','Las Vegas':'us','Abu Dhabi':'ae','China':'cn',
+        'Baku':'az','Azerbaijan':'az',
+    };
+    if (map[trackName]) return map[trackName];
+    for (const [k,v] of Object.entries(map)) {
+        if (trackName.includes(k) || k.includes(trackName)) return v;
+    }
+    return '';
+}
+
+function updateClocks() {
+    const now = new Date();
+    const myTime = document.getElementById('f1-my-time');
+    if (myTime) myTime.textContent = formatTime(now);
+}
+
+function updateCircuitBanner(sessionId) {
+    const cached = _sessionsCache.find(s => String(s.session_id) === String(sessionId));
+    if (!cached) return;
+    const flagEl = document.getElementById('f1-flag');
+    const nameEl = document.getElementById('f1-circuit-name');
+    const roundEl = document.getElementById('f1-round-num');
+    const dateEl = document.getElementById('f1-date-range');
+    if (flagEl) {
+        const url = getFlagUrl(cached.track_name);
+        if (url) {
+            flagEl.innerHTML = `<img src="${url}" alt="" style="width:22px;height:16px;border-radius:2px;object-fit:cover;border:1px solid rgba(255,255,255,0.1);vertical-align:middle;">`;
+        } else {
+            flagEl.textContent = '';
+        }
+    }
+    if (nameEl) nameEl.textContent = cached.track_name || '---';
+    if (roundEl && _sessionsCache.length) {
+        const idx = _sessionsCache.findIndex(s => String(s.session_id) === String(sessionId));
+        if (idx >= 0) roundEl.textContent = String(_sessionsCache.length - idx).padStart(2, '0');
+    }
+    if (dateEl && cached.date) {
+        try {
+            const d = new Date(cached.date + 'T00:00:00');
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            dateEl.textContent = `${d.getDate()} ${months[d.getMonth()]}`;
+        } catch(e) { dateEl.textContent = cached.date; }
+    }
+}
+
+function formatTime(date, tz) {
+    try {
+        const opts = { hour:'2-digit', minute:'2-digit', hour12:false };
+        if (tz) opts.timeZone = tz;
+        return date.toLocaleTimeString('en-GB', opts);
+    } catch(e) { return '--:--'; }
+}
+
+// LIGHT / DARK MODE
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    const btn = document.getElementById('theme-btn');
+    if (btn) btn.textContent = document.body.classList.contains('light-mode') ? 'NIGHT' : 'SUN';
+    try { localStorage.setItem('f1dp-theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); } catch(e) {}
+}
+(function restoreTheme() {
+    try {
+        if (localStorage.getItem('f1dp-theme') === 'light') {
+            document.body.classList.add('light-mode');
+            const btn = document.getElementById('theme-btn');
+            if (btn) btn.textContent = 'NIGHT';
+        }
+    } catch(e) {}
+})();
+
+// 2024 RACE CALENDAR
+const RACE_CALENDAR_2024 = [
+    {round:1,country:'Bahrain',code:'bh',dates:'29 Feb - 02 Mar'},
+    {round:2,country:'Saudi Arabia',code:'sa',dates:'07 - 09 Mar'},
+    {round:3,country:'Australia',code:'au',dates:'22 - 24 Mar'},
+    {round:4,country:'Japan',code:'jp',dates:'05 - 07 Apr'},
+    {round:5,country:'China',code:'cn',dates:'19 - 21 Apr'},
+    {round:6,country:'Miami',code:'us',dates:'03 - 05 May'},
+    {round:7,country:'Emilia-Romagna',code:'it',dates:'17 - 19 May'},
+    {round:8,country:'Monaco',code:'mc',dates:'24 - 26 May'},
+    {round:9,country:'Canada',code:'ca',dates:'07 - 09 Jun'},
+    {round:10,country:'Spain',code:'es',dates:'21 - 23 Jun'},
+    {round:11,country:'Austria',code:'at',dates:'28 - 30 Jun'},
+    {round:12,country:'Great Britain',code:'gb',dates:'05 - 07 Jul'},
+    {round:13,country:'Hungary',code:'hu',dates:'19 - 21 Jul'},
+    {round:14,country:'Belgium',code:'be',dates:'26 - 28 Jul'},
+    {round:15,country:'Netherlands',code:'nl',dates:'23 - 25 Aug'},
+    {round:16,country:'Italy',code:'it',dates:'30 Aug - 01 Sep'},
+    {round:17,country:'Azerbaijan',code:'az',dates:'13 - 15 Sep'},
+    {round:18,country:'Singapore',code:'sg',dates:'20 - 22 Sep'},
+    {round:19,country:'United States',code:'us',dates:'18 - 20 Oct'},
+    {round:20,country:'Mexico',code:'mx',dates:'25 - 27 Oct'},
+    {round:21,country:'Brazil',code:'br',dates:'01 - 03 Nov'},
+    {round:22,country:'Las Vegas',code:'us',dates:'21 - 23 Nov'},
+    {round:23,country:'Qatar',code:'qa',dates:'29 Nov - 01 Dec'},
+    {round:24,country:'Abu Dhabi',code:'ae',dates:'06 - 08 Dec'},
+];
+
+function buildCalendar() {
+    const grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    grid.innerHTML = RACE_CALENDAR_2024.map(r => {
+        const flagUrl = `/static/flags/${r.code}.png`;
+        return `<div class="cal-item" data-country="${r.country.toLowerCase()}"><span class="cal-round">R${String(r.round).padStart(2,'0')}</span><img class="cal-flag" src="${flagUrl}" alt="${r.country}"><div class="cal-info"><div class="cal-country">${r.country}</div><div class="cal-dates">${r.dates}</div></div></div>`;
+    }).join('');
+}
+
+function highlightCalendarRow(trackName) {
+    document.querySelectorAll('.cal-item').forEach(el => el.classList.remove('current'));
+    if (!trackName) return;
+    document.querySelectorAll('.cal-item').forEach(el => {
+        const country = (el.dataset.country || '').toLowerCase();
+        if (trackName.toLowerCase().includes(country) || country.includes(trackName.toLowerCase())) el.classList.add('current');
+    });
+}
+
+function toggleCalendar() {
+    const cal = document.getElementById('race-calendar');
+    const btn = document.getElementById('cal-toggle');
+    cal.classList.toggle('show');
+    btn.classList.toggle('active');
+}
+
+// DRIVER TEAM COLORS
+const DRIVER_TEAMS = {
+    'VER':'#3671C6','PER':'#3671C6','HAM':'#27F4D2','RUS':'#27F4D2',
+    'LEC':'#E8002D','SAI':'#E8002D','NOR':'#FF8000','PIA':'#FF8000',
+    'ALO':'#229971','STR':'#229971','GAS':'#0093CC','OCO':'#0093CC',
+    'ALB':'#64C4FF','SAR':'#64C4FF','TSU':'#6692FF','LAW':'#6692FF',
+    'HUL':'#B6BABD','RIC':'#B6BABD','MAG':'#B6BABD','BEA':'#B6BABD',
+    'BOT':'#C92D4B','ZHO':'#C92D4B','DEV':'#6692FF','COL':'#FF8000',
+};
+
+function badgeifyDriver(code, name) {
+    const color = DRIVER_TEAMS[code] || '#888';
+    const label = name ? `${name} (${code})` : code;
+    return `<span class="driver-badge"><span class="driver-badge-dot" style="background:${color}"></span>${label}</span>`;
+}
+
+// INIT
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    loadOptions();
+    loadSessionsWithCache();
+    loadDashboardDrivers();
+    loadComparisonYears();
+    updateStats();
+    setInterval(updateStats, 2000);
+    setInterval(updateClocks, 1000);
+    updateClocks();
+    buildCalendar();
+});
+</script>
+</body>
+</html>

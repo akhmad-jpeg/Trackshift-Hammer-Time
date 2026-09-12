@@ -1,0 +1,13 @@
+# Runtime and training dependencies for the F1 telemetry platform.
+# Pinned to the exact versions validated by the test suite on Python 3.13
+# (see .github/workflows/ci.yml).  Bump deliberately and re-run tests.
+fastf1==3.8.3
+Flask==3.1.3
+joblib==1.5.3
+matplotlib==3.11.1
+mysql-connector-python==9.7.0
+numpy==2.5.2
+pandas==2.3.3
+scikit-learn==1.9.0
+statsmodels==0.14.6
+waitress==2.1.2
